@@ -44,6 +44,6 @@ The upstream development toolchain still reports 14 npm audit findings (8 modera
 
 ## Future contributions
 
-`origin` is your fork; `upstream` is Dan Greenheck's repository. Experimental changes are kept locally on `experiment/organism-modes`; no pull request or npm package has been published. Keep future upstream bug fixes on focused branches based on `upstream/main`, separate from the Lab modes. The new generators are isolated under `src/app/lab/` to make that easier.
+`origin` is your fork; `upstream` is Dan Greenheck's repository. Experimental changes are saved on `experiment/organism-modes` locally and on your GitHub fork; no pull request or npm package has been published. Keep future upstream bug fixes on focused branches based on `upstream/main`, separate from the Lab modes. The new generators are isolated under `src/app/lab/` to make that easier.
 
 The built web app is in `dist/`. This is a local browser application, not a Windows executable. Open it through the server, since module loading and asset URLs require HTTP.
