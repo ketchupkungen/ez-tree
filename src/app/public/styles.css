@@ -1227,3 +1227,13 @@ a {
     animation-duration: 0.01ms !important;
   }
 }
+/* The original panel gains only a compact, three-position generator selector. */
+.mode-control { padding: 14px 16px 10px; border-bottom: 1px solid var(--panel-border); }
+.mode-control > label { display: block; color: var(--text-secondary, #a0a0a0); font-size: .72rem; margin-bottom: 10px; }
+.mode-control > input { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.mode-labels { display: flex; justify-content: space-between; margin-top: 3px; }
+.mode-labels button { flex: 1; border: 0; background: transparent; color: var(--text-secondary, #aaa); padding: 5px 0; cursor: pointer; font: inherit; font-size: .75rem; }
+.mode-labels button[aria-pressed=true] { color: var(--text-primary, #fff); font-weight: 600; }
+.mode-labels button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mode-status { margin: 12px 16px; font-size: .75rem; line-height: 1.5; color: var(--text-secondary, #aaa); }
+[hidden] { display: none !important; }

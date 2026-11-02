@@ -1,6 +1,6 @@
 # EZ-Tree
 
-> This checkout includes **EZ-Tree Lab**, a local experiment with tree/bush, plant and creature modes. See [LAB.md](LAB.md) for the launcher, controls, verification and contribution workflow. The original editor remains at `/original.html`.
+> This checkout extends the original EZ-Tree editor with a Tree / Plant / Creature mode slider in the existing panel. See [LAB.md](LAB.md) for the local launcher and development workflow.
 
 ![NPM Version](https://img.shields.io/npm/v/%40dgreenheck%2Fez-tree)
 ![NPM Downloads](https://img.shields.io/npm/dw/%40dgreenheck%2Fez-tree)

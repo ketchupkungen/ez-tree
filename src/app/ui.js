@@ -6,6 +6,7 @@ import { BarkType, LeafType, applyTreeTextures, loadPresetWithTextures } from '.
 import { Environment } from './environment';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { version } from '../../package.json';
+import { fields, presets, newRecipe, validateRecipe } from './lab/recipes.js';
 
 const exporter = new GLTFExporter();
 
@@ -121,6 +122,7 @@ function createSlider(label, value, min, max, step, onChange) {
   const slider = document.createElement('input');
   slider.type = 'range';
   slider.className = 'slider';
+  slider.setAttribute('aria-label', label);
   slider.min = min;
   slider.max = max;
   slider.step = step;
@@ -131,6 +133,7 @@ function createSlider(label, value, min, max, step, onChange) {
   valueInput.className = 'slider-value';
   valueInput.value = formatValue(value, step);
   valueInput.step = step;
+  valueInput.min = min; valueInput.max = max; valueInput.setAttribute('aria-label', `${label} value`);
 
   // Fill the track up to the current value so it reads at a glance
   const setFill = () => {
@@ -149,6 +152,8 @@ function createSlider(label, value, min, max, step, onChange) {
   valueInput.addEventListener('change', (e) => {
     let val = parseFloat(e.target.value);
     if (isNaN(val)) val = min;
+    val = Math.min(max, Math.max(min, val));
+    val = Math.round((val - min) / step) * step + min;
     slider.value = val;
     valueInput.value = formatValue(val, step);
     setFill();
@@ -236,6 +241,7 @@ function createSelect(label, options, value, onChange) {
 
   const select = document.createElement('select');
   select.className = 'select';
+  select.setAttribute('aria-label', label);
 
   Object.entries(options).forEach(([key, val]) => {
     const option = document.createElement('option');
@@ -454,7 +460,7 @@ let controls = [];
  * @param {OrbitControls} orbitControls
  * @param {String} initialPreset
  */
-export function setupUI(tree, environment, renderer, scene, camera, orbitControls, initialPreset) {
+export function setupUI(tree, environment, renderer, scene, camera, orbitControls, initialPreset, modes) {
   const container = document.getElementById('ui-container');
   container.innerHTML = '';
   controls = [];
@@ -481,6 +487,16 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
   const scrollArea = document.createElement('div');
   scrollArea.className = 'panel-scroll-area';
   panel.appendChild(scrollArea);
+
+  // A single mode slider extends the source panel without changing its layout.
+  const modeNames = ['tree', 'plant', 'creature'];
+  const modeControl = document.createElement('div');
+  modeControl.className = 'mode-control';
+  modeControl.innerHTML = `<label for="generator-mode">Generator mode</label>
+    <input id="generator-mode" type="range" min="0" max="2" step="1" value="0" aria-label="Generator mode" aria-valuetext="Tree">
+    <div class="mode-labels"><button type="button" data-mode="tree" aria-pressed="true">Tree</button><button type="button" data-mode="plant" aria-pressed="false">Plant</button><button type="button" data-mode="creature" aria-pressed="false">Creature</button></div>`;
+  scrollArea.appendChild(modeControl);
+  const getModel = () => modes?.model ?? tree;
 
   // Tab navigation
   const tabNav = document.createElement('div');
@@ -586,6 +602,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
   }
 
   function setPreviewLevel(level) {
+    if (modes && modes.mode !== 'tree') return;
     previewLevel = level;
     lodButtons.forEach((b, i) => b.classList.toggle('active', i === level));
     applyLODPreview();
@@ -594,12 +611,14 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
 
   /** Vertex/triangle counts of the geometry currently on screen */
   function displayedCounts() {
-    const gb = tree.branchesMesh.geometry;
-    const gl = tree.leavesMesh.geometry;
-    return {
-      vertices: (gb.attributes.position?.count ?? 0) + (gl.attributes.position?.count ?? 0),
-      triangles: ((gb.index?.count ?? 0) + (gl.index?.count ?? 0)) / 3,
-    };
+    let vertices = 0, triangles = 0;
+    getModel().traverse(o => {
+      if (!o.isMesh) return;
+      const geometry = o.geometry;
+      vertices += geometry.attributes.position?.count ?? 0;
+      triangles += (geometry.index?.count ?? geometry.attributes.position?.count ?? 0) / 3;
+    });
+    return { vertices, triangles };
   }
 
   // ============================================================================
@@ -1044,6 +1063,63 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
 
   parametersTab.appendChild(trellisSection.element);
 
+  // Keep every upstream tree control together; common scene controls stay below.
+  const treeParameters = document.createElement('div');
+  treeParameters.id = 'tree-parameters';
+  treeParameters.append(...parametersTab.children);
+  parametersTab.appendChild(treeParameters);
+  const organismParameters = document.createElement('div');
+  organismParameters.id = 'organism-parameters';
+  organismParameters.hidden = true;
+  parametersTab.appendChild(organismParameters);
+
+  const modeStatus = document.createElement('p');
+  modeStatus.className = 'mode-status'; modeStatus.setAttribute('role', 'status');
+  function regenerateOrganism(refit = false) {
+    const start = performance.now(); modes.regenerate(); lastBuildMs = performance.now() - start;
+    if (refit) modes.fit(); updateInfoDisplays();
+  }
+  function buildOrganismControls() {
+    organismParameters.replaceChildren();
+    const mode = modes.mode, recipe = modes.recipe;
+    const section = createSection('Presets', 'swatch', true);
+    section.add(createSelect('Preset', Object.fromEntries(Object.keys(presets[mode]).map(name => [name, name])), recipe.preset, name => {
+      modes.setRecipe(newRecipe(mode, name)); buildOrganismControls(); regenerateOrganism(true);
+    }));
+    const seed = createSlider('Seed', recipe.parameters.seed, 0, 65536, 1, value => { recipe.parameters.seed = value; regenerateOrganism(); });
+    section.add(seed);
+    section.add(createButton('Random Seed', 'dice', () => { recipe.parameters.seed = Math.floor(Math.random() * 65536); seed.setValue(recipe.parameters.seed); regenerateOrganism(); }));
+    organismParameters.appendChild(section.element);
+    const shape = createSection(mode === 'plant' ? 'Plant Shape' : 'Creature Shape', 'tree', true);
+    for (const [key, [label, min, max, step]] of Object.entries(fields[mode])) {
+      shape.add(createSlider(label, recipe.parameters[key], min, max, step, value => { recipe.parameters[key] = value; regenerateOrganism(); }));
+    }
+    for (const [key, label] of [['color', 'Primary'], ['accent', 'Accent']]) {
+      shape.add(createColorPicker(label, parseInt(recipe.parameters[key].slice(1), 16), value => { recipe.parameters[key] = '#' + value.toString(16).padStart(6, '0'); regenerateOrganism(); }));
+    }
+    shape.add(createButton('Fit View', 'videoCamera', () => modes.fit()));
+    organismParameters.appendChild(shape.element);
+    modeStatus.textContent = mode === 'plant' ? 'Procedural foliage and flowers.' : 'Static creature shapes. Rigging and animation come later.';
+    organismParameters.appendChild(modeStatus);
+  }
+  function setMode(mode) {
+    if (!modes) return;
+    const started = performance.now();
+    modes.switchTo(mode);
+    lastBuildMs = mode === 'tree' ? null : performance.now() - started;
+    const isTree = mode === 'tree';
+    treeParameters.hidden = !isTree; organismParameters.hidden = isTree;
+    modeControl.querySelector('input').value = modeNames.indexOf(mode);
+    modeControl.querySelector('input').setAttribute('aria-valuetext', mode[0].toUpperCase() + mode.slice(1));
+    modeControl.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mode === mode)));
+    tabNav.querySelector('[data-tab="parameters"] .tab-label').textContent = mode[0].toUpperCase() + mode.slice(1);
+    lodSwitcher.hidden = !isTree; exportLodsBtn.element.hidden = !isTree;
+    if (!isTree) buildOrganismControls();
+    updateInfoDisplays();
+  }
+  modeControl.querySelector('input').addEventListener('input', event => setMode(modeNames[Number(event.target.value)]));
+  modeControl.querySelectorAll('button').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
+
   // ----- Camera Section -----
   const cameraSection = createSection('Camera', 'videoCamera', false);
 
@@ -1117,10 +1193,10 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
 
   const savePresetBtn = createButton('Save Preset', 'document', () => {
     const link = document.getElementById('downloadLink');
-    const json = JSON.stringify(tree.options, null, 2);
+    const json = JSON.stringify(modes.mode === 'tree' ? tree.options : modes.recipe, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     link.href = URL.createObjectURL(blob);
-    link.download = 'tree.json';
+    link.download = `${modes.mode}.json`;
     link.click();
   });
   exportSection.add(savePresetBtn);
@@ -1165,16 +1241,16 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     if (restoreLevel !== 0) {
       setPreviewLevel(0);
     }
-    const restoreTextures = stripBrokenTextures(tree);
+    const restoreTextures = stripBrokenTextures(getModel());
     try {
       await paint();
       const glb = await new Promise((resolve, reject) =>
-        exporter.parse(tree, resolve, reject, { binary: true }),
+        exporter.parse(getModel(), resolve, reject, { binary: true }),
       );
       const blob = new Blob([glb], { type: 'application/octet-stream' });
       const link = document.getElementById('downloadLink');
       link.href = window.URL.createObjectURL(blob);
-      link.download = 'tree.glb';
+      link.download = `${modes.mode}.glb`;
       link.click();
     } catch (err) {
       console.error(err);
@@ -1188,7 +1264,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
   exportModelsSection.add(exportGlbBtn);
 
   const exportLodsBtn = createButton('Export LODs (ZIP)', 'archive', async ({ setStatus }) => {
-    const restoreTextures = stripBrokenTextures(tree);
+    const restoreTextures = stripBrokenTextures(getModel());
     try {
       const files = {};
       for (let i = 0; i < Tree.defaultLODLevels.length; i++) {
@@ -1241,21 +1317,23 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     const fog = scene.fog;
     scene.fog = null;
 
+    const visibility = new Map();
     scene.traverse((o) => {
+      visibility.set(o, o.visible);
       if (o.name === 'Skybox') {
         o.material.side = THREE.FrontSide;
       } else if (o.isMesh) {
         o.visible = false;
       }
     });
-    tree.traverse((o) => o.visible = true);
+    getModel().traverse((o) => o.visible = true);
 
     try {
       renderer.render(scene, camera);
 
       const link = document.getElementById('downloadLink');
       link.href = renderer.domElement.toDataURL('image/png');
-      link.download = 'tree.png';
+      link.download = `${modes.mode}.png`;
       link.click();
     } catch (err) {
       console.error(err);
@@ -1266,7 +1344,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
         if (o.name === 'Skybox') {
           o.material.side = THREE.BackSide;
         }
-        o.visible = true;
+        o.visible = visibility.get(o);
       });
     }
   });
@@ -1302,12 +1380,15 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
       const reader = new FileReader();
       reader.onload = function (e) {
         try {
-          tree.options = JSON.parse(e.target.result);
-          tree.generate();
-          if (previewLevel > 0) {
-            applyLODPreview();
+          const data = JSON.parse(e.target.result);
+          if (data.version === 1 && data.mode) {
+            const recipe = validateRecipe(data);
+            if (recipe.mode === 'tree') throw new Error('Use an original tree preset for Tree mode.');
+            modes.setRecipe(recipe); setMode(recipe.mode); regenerateOrganism(true); buildOrganismControls();
+          } else {
+            if (!data.branch || !data.leaves || !data.bark) throw new Error('Not an EZ-Tree preset.');
+            setMode('tree'); tree.options.copy(data); onChange(); refreshAllControls();
           }
-          refreshAllControls();
         } catch (error) {
           console.error('Error parsing JSON:', error);
         }

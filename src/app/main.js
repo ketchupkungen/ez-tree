@@ -5,6 +5,7 @@ import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { setupUI } from './ui';
 import { createScene } from './scene';
+import { createModes } from './modes.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('app')
@@ -58,7 +59,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.addEventListener('resize', resize);
 
-  setupUI(tree, environment, renderer, scene, camera, controls, 'Ash Medium');
+  const modes = createModes(tree, scene, camera, controls);
+  setupUI(tree, environment, renderer, scene, camera, controls, 'Ash Medium', modes);
   animate();
   resize();
 

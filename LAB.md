@@ -1,33 +1,29 @@
-# EZ-Tree Lab — initial local experiment
+# EZ-Tree Lab — source editor with generator modes
 
 Fork: https://github.com/ketchupkungen/ez-tree  
 Upstream: https://github.com/dgreenheck/ez-tree  
 Base commit: `dcf309bd86bd521083d9c70f01f2de45fdc7c457`  
-Local branch: `experiment/organism-modes`
+Branch: `experiment/organism-modes`
 
 ## Run
 
-Double-click **Start-Lab.cmd**, then visit http://127.0.0.1:5178. The launcher starts a hidden local preview server and opens your default browser. Node.js and npm must be installed. Dependencies and the initial production build are already present in this checkout; the launcher installs/builds when missing.
+Double-click **Start-Lab.cmd**, then visit http://127.0.0.1:5178. The launcher starts a hidden local production preview server and opens your browser. Node.js/npm are required. Dependencies and the built app are already present in this checkout. The launcher installs/builds only when missing.
 
-The server binds to loopback. Stop it with `powershell -NoProfile -File scripts/Stop-Lab.ps1` from this folder. The launcher reuses an existing Lab server and does not terminate other apps.
+The `/` and `/original.html` URLs now open the same editor: the original EZ-Tree scene, glass panel, controls, tabs and environment, extended with a three-position **Generator mode** slider above the Tree/Export tabs. The earlier custom studio layout has been removed.
 
-For development, stop the preview server, then run `npm run dev`. Changes reload automatically. To update the production preview after editing source, run `npm run build`, then refresh the browser. `npm run preview` serves the built app in a foreground terminal.
+Stop the server with `powershell -NoProfile -File scripts/Stop-Lab.ps1`. For development, stop preview and run `npm run dev`. Rebuild with `npm run build` and refresh to update production preview. The server binds to `127.0.0.1`.
 
 ## Modes
 
-| Mode | Initial implementation |
-| --- | --- |
-| Tree / bush | Original EZ-Tree generator, 15 tree/bush presets, seed, height, crown width, leaf size/density and two tints. |
-| Plant | Meadow bloom, Fern and Broadleaf presets; seeded curved stems, surface-meshed leaves and optional flowers. Adjust height, stems, leaves, size, petals and bend. |
-| Creature | Mossback, Dune crawler and Little grazer presets; seeded symmetric creatures with body, head, jointed legs, tail, eyes, ears and back horns. Adjust proportions and limb count. |
+- **Tree:** original preset list, seed, bark, branches, leaves, trellis, camera, environment, stats, LOD preview and LOD ZIP export. Bushes remain in the original preset dropdown.
+- **Plant:** Meadow bloom, Fern and Broadleaf; original-style sliders for stems, leaves, petals, size and bend, plus colors and Fit View.
+- **Creature:** Mossback, Dune crawler and Little grazer; original-style sliders for body, head, legs, tail and horns, plus colors and Fit View. Static overlapping meshes; no rigging or locomotion yet.
 
-Drag to orbit, scroll to zoom, right-drag to pan. Fit view reframes the current model. Auto rotate and wireframe aid inspection. Changes regenerate immediately. Each mode retains its parameters while switching; the current specimen persists across reloads in browser local storage.
+Drag the mode slider or click its Tree / Plant / Creature labels. Each mode keeps its settings and camera while switching during the session. Refresh starts at the original Ash Medium tree. Camera, environment and Export remain in the existing panel. LOD controls appear only in Tree mode.
 
-Save/load recipes as small versioned JSON files to reproduce models. GLB export includes only the specimen, with materials and local tree textures embedded. PNG saves the 3D viewport. The scene floor, grid and UI are excluded from GLB. Exports are static meshes, without wind, skeletons, animation, UV authoring tools or a unified creature skin. Creature parts overlap and are separate meshes, suitable for early shape exploration. Plant presets are stylized approximations rather than botanical simulations.
+Use the existing **Save Preset / Load Preset**, **Export GLB (Full Detail)** and **Export PNG** buttons. Tree JSON retains the upstream options format. Plant and creature JSON use versioned recipes. GLB exports the active specimen only; PNG exports it against transparency. The plant/creature models are scaled to fit the original scene. Tree presets from the former custom studio used a different recipe format; use original editor tree JSON here.
 
-The original full tree editor is available at http://127.0.0.1:5178/original.html, including its existing detailed tree controls. Lab recipes use their own format and are not interchangeable with original-editor JSON files. Upstream tree library source is unchanged. The fork retains upstream's MIT license, author credit and texture licenses. Upstream analytics were removed from the local editor.
-
-## Build and checks
+## Build and verification
 
 ```powershell
 npm ci
@@ -36,14 +32,12 @@ npm test
 npm run test:browser
 ```
 
-Browser checks use installed Google Chrome via Playwright's `chrome` channel. Install Chrome or change the channel in `playwright.config.js` for another environment.
+Browser tests use installed Google Chrome via Playwright's `chrome` channel. Change that channel for another environment.
 
-Verified on Windows with Node 24.15.0: library/app production builds, five generator/recipe tests, and two browser scenarios covering all 21 presets, parameter maxima, seed changes, JSON roundtrip/rejection, GLB header/scene/mesh checks, PNG signature, reload persistence, mobile layout and original editor startup. Desktop screenshots of all three modes were visually inspected. This does not establish Blender/Unreal import compatibility; exports were checked as GLB containers with mesh data in the browser workflow.
+Verified: app build, five generator/recipe tests and two browser scenarios. Browser checks cover mode slider and label switching, per-mode state, all plant/creature presets, original tree seed preservation, LOD preview, active-model GLB/PNG/JSON export, tree and organism preset reload, mobile panel visibility and both entry URLs. Desktop screenshots of the restored panel in Tree and Creature modes were inspected. Exports were checked as GLB containers with expected scene nodes, not imported into a game engine.
 
-The upstream development toolchain still reports 14 npm audit findings (8 moderate, 6 high) after compatible fixes. These are development dependencies; no audit-clean claim is made. A separate toolchain upgrade is sensible before hosting publicly. Known build warnings: the upstream declaration generator bundles an older TypeScript engine, and the shared Three.js chunk exceeds Vite's size advisory. Both builds complete successfully.
+The upstream toolchain still has 14 npm audit findings (8 moderate, 6 high), all in development dependencies after compatible fixes. The shared Three.js bundle produces Vite's size advisory. No audit-clean or game-engine compatibility claim is made.
 
-## Future contributions
+## Contributions
 
-`origin` is your fork; `upstream` is Dan Greenheck's repository. Experimental changes are saved on `experiment/organism-modes` locally and on your GitHub fork; no pull request or npm package has been published. Keep future upstream bug fixes on focused branches based on `upstream/main`, separate from the Lab modes. The new generators are isolated under `src/app/lab/` to make that easier.
-
-The built web app is in `dist/`. This is a local browser application, not a Windows executable. Open it through the server, since module loading and asset URLs require HTTP.
+`origin` is your fork; `upstream` is the original repository. Experimental changes are saved on `experiment/organism-modes`. No upstream pull request or npm package is published. The upstream tree library remains unchanged. The mode controller is `src/app/modes.js`; new shape generators and recipes remain under `src/app/lab/`. MIT and texture licenses and author credits are retained. The upstream analytics snippet is excluded locally.
