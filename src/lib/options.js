@@ -162,6 +162,11 @@ export default class TreeOptions {
       roundedNormals: true,
     };
 
+    // Optional generator traits. Terrain sampling and breakable exports are
+    // host-side operations; these plain values survive preset save/load.
+    this.roots = { enabled: false, count: 7, spread: 8, thickness: 0.65, forks: 2, ground: 'Flat', relief: 2, bakeTerrain: false };
+    this.destruction = { enabled: false, cut: 0.03, direction: 135, gravity: 9.81, breakBranches: true };
+
     // Trellis parameters
     this.trellis = {
       // Whether trellis is enabled

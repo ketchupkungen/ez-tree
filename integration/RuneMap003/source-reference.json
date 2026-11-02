@@ -1,0 +1,21 @@
+{
+  "commit": "36cf280ce61fac91709bfdedbf13f6b155a6efa2",
+  "files": [
+    {
+      "sha256": "601d8b05892ce1844476e1b2458c2960fe717817ad875f663d485d75e57d5fc5",
+      "path": "Tools/Spruce006/world-materials015.py"
+    },
+    {
+      "sha256": "d7c8807225cdfe6f13fda0eaedd35c11bf5ef21adf7ba1c73aa9c5407e40b8d5",
+      "path": "Tools/Trees017/roots017.py"
+    },
+    {
+      "sha256": "dd339f5fbc0444e57a6867bbc07458297d44304f7135ebc635077ec3a8dbe620",
+      "path": "Project/Source/FrontierWaterSandbox/FWMapScenery002.cpp"
+    }
+  ],
+  "sourceDirectory": "H:/CodexSandboxes/rune-map-source",
+  "buildDirectory": "H:/CodexSandboxes/rune-map-003",
+  "build": "rune-map-003",
+  "access": "read-only; game source and build not modified"
+}

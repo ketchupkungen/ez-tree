@@ -1,0 +1,24 @@
+// Reference material Custom-node function, matching Rune MAP003 RootField015.
+// Not installed/compiled into the game by this generator change.
+// RootWeight = imported RootSystem TEXCOORD_1.y (or remap it to native UV7.y).
+// VertexWS and InstanceOriginWS are Unreal world coordinates in centimetres.
+// Domain = (field world origin X, origin Y, texel spacing cm, texture width).
+float3 EZTreeRootContact(
+    float3 VertexWS, float3 InstanceOriginWS, float RootWeight,
+    Texture2D Field, SamplerState FieldSampler, float4 Domain)
+{
+    float delta = 0;
+    if (RootWeight > 0.001 && Domain.w > 1.5 && Domain.z > 0)
+    {
+        float2 p = (VertexWS.xy - Domain.xy) / Domain.z;
+        float2 r = (InstanceOriginWS.xy - Domain.xy) / Domain.z;
+        if (all(p >= 0) && all(p <= Domain.w - 1) &&
+            all(r >= 0) && all(r <= Domain.w - 1))
+        {
+            float vertexHeight = Field.SampleLevel(FieldSampler, (p + 0.5) / Domain.w, 0).r;
+            float anchorHeight = Field.SampleLevel(FieldSampler, (r + 0.5) / Domain.w, 0).r;
+            delta = saturate(RootWeight) * (vertexHeight - anchorHeight);
+        }
+    }
+    return float3(0, 0, delta);
+}

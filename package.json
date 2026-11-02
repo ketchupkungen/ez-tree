@@ -36,7 +36,7 @@
     "app": "npm run build:lib && vite --config vite.app.config.js",
     "preview": "vite preview --config vite.app.config.js",
     "build": "npm run build:lib && npm run build:app",
-    "test": "node --test tests/generators.test.js tests/forest-preview.test.js tests/creature-rig.test.js",
+    "test": "node --test tests/generators.test.js tests/forest-preview.test.js tests/creature-rig.test.js tests/tree-traits.test.js",
     "test:browser": "playwright test"
   },
   "devDependencies": {

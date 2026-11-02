@@ -298,12 +298,18 @@ export class Tree extends THREE.Group {
       uvs: [],
     };
 
+    const selected = detail.branchIds ? new Set(detail.branchIds) : null;
+    const leafSelected = detail.leafBranchIds ? new Set(detail.leafBranchIds) : selected;
+    const leafIndices = detail.leafIndices ? new Set(detail.leafIndices) : null;
     for (const skeletonBranch of this.skeleton.branches) {
-      this.#meshBranch(branches, skeletonBranch, sectionStride, segmentFactor);
+      if (selected && !selected.has(skeletonBranch.id)) continue;
+      const sections = detail.branchSections?.[skeletonBranch.id];
+      this.#meshBranch(branches, sections ? { ...skeletonBranch, sections } : skeletonBranch, sectionStride, segmentFactor);
     }
 
     for (let i = 0; i < this.skeleton.leaves.length; i += leafStride) {
-      this.#meshLeaf(leaves, this.skeleton.leaves[i], leafScale, billboard);
+      const leaf = this.skeleton.leaves[i];
+      if ((!leafSelected || leafSelected.has(leaf.branchId)) && (!leafIndices || leafIndices.has(i))) this.#meshLeaf(leaves, leaf, leafScale, billboard);
     }
 
     return { branches, leaves };
@@ -317,6 +323,7 @@ export class Tree extends THREE.Group {
    * @returns
    */
   #growBranch(branch) {
+    this.currentBranchId = this.skeleton.branches.length;
     let sectionOrientation = branch.orientation.clone();
     let sectionOrigin = branch.origin.clone();
     let sectionLength =
@@ -414,6 +421,10 @@ export class Tree extends THREE.Group {
     }
 
     this.skeleton.branches.push({
+      id: this.currentBranchId,
+      parentId: branch.parentId,
+      level: branch.level,
+      continuation: branch.continuation,
       sections,
       segmentCount: branch.segmentCount,
       baseRadius: branch.radius,
@@ -436,6 +447,8 @@ export class Tree extends THREE.Group {
             // since the child branch is growing from the end of the parent branch
             branch.sectionCount,
             branch.segmentCount,
+            this.currentBranchId,
+            true,
           ),
         );
       } else {
@@ -546,6 +559,7 @@ export class Tree extends THREE.Group {
           level,
           this.options.branch.sections[level],
           this.options.branch.segments[level],
+          this.currentBranchId,
         ),
       );
     }
@@ -639,6 +653,7 @@ export class Tree extends THREE.Group {
         ));
 
     this.skeleton.leaves.push({
+      branchId: this.currentBranchId,
       origin: origin.clone(),
       orientation: orientation.clone(),
       size,
@@ -856,7 +871,7 @@ export class Tree extends THREE.Group {
       new THREE.BufferAttribute(new Float32Array(buffers.uvs), 2),
     );
     g.setIndex(
-      new THREE.BufferAttribute(new Uint16Array(buffers.indices), 1),
+      new THREE.BufferAttribute((buffers.verts.length / 3 > 65535 ? new Uint32Array(buffers.indices) : new Uint16Array(buffers.indices)), 1),
     );
     g.computeBoundingSphere();
     return g;

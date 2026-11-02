@@ -10,6 +10,12 @@ import { fields, presets, newRecipe, validateRecipe } from './lab/recipes.js';
 import { speciesFields } from './creature/creatures.js';
 
 const exporter = new GLTFExporter();
+// r167 writes `channel` here; glTF requires the texture-info field `texCoord`.
+// Keep the installed exporter untouched and correct the material through its hook.
+exporter.register(() => ({ name: 'EZTreeTextureCoordinateFix', writeMaterial(material, definition) {
+  const texture = definition.pbrMetallicRoughness?.metallicRoughnessTexture;
+  if (texture && texture.channel !== undefined) { texture.texCoord = texture.channel; delete texture.channel; }
+} }));
 
 // ============================================================================
 // Heroicons (outline style)
@@ -464,7 +470,7 @@ let controls = [];
  * @param {OrbitControls} orbitControls
  * @param {String} initialPreset
  */
-export function setupUI(tree, environment, renderer, scene, camera, orbitControls, initialPreset, modes, forestPreview) {
+export function setupUI(tree, environment, renderer, scene, camera, orbitControls, initialPreset, modes, forestPreview, treeTraits) {
   const container = document.getElementById('ui-container');
   container.innerHTML = '';
   controls = [];
@@ -610,6 +616,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     previewLevel = level;
     lodButtons.forEach((b, i) => b.classList.toggle('active', i === level));
     applyLODPreview();
+    treeTraits.setLOD(level);
     updateInfoDisplays();
   }
 
@@ -633,6 +640,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     applyTreeTextures(tree);
     const t0 = performance.now();
     tree.generate();
+    treeTraits.sourceChanged();
     forestPreview.requestRefresh();
     lastBuildMs = performance.now() - t0;
     if (previewLevel > 0) {
@@ -655,6 +663,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     initialPreset,
     (val) => {
       loadPresetWithTextures(tree, val);
+      treeTraits.sourceChanged();
       forestPreview.requestRefresh();
       if (previewLevel > 0) {
         applyLODPreview();
@@ -1069,6 +1078,42 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
 
   parametersTab.appendChild(trellisSection.element);
 
+  const rootsSection = createSection('Roots', 'tree', false);
+  rootsSection.element.id = 'tree-root-controls';
+  const rootEnable = createToggle('Root System', tree.options.roots.enabled, value => treeTraits.configureRoots({ enabled: value }));
+  rootsSection.add(rootEnable); controls.push({ update: () => rootEnable.setValue(tree.options.roots.enabled) });
+  for (const [key, label, min, max, step] of [['count','Main Roots',3,16,1],['spread','Root Reach',2,14,0.5],['thickness','Root Width',0.2,1.2,0.05],['forks','Root Forks',0,3,1],['relief','Ground Relief',0,6,0.25]]) {
+    const slider = createSlider(label, tree.options.roots[key], min, max, step, value => treeTraits.configureRoots({ [key]: value }));
+    rootsSection.add(slider); controls.push({ update: () => slider.setValue(tree.options.roots[key]) });
+  }
+  const groundSelect = createSelect('Root Ground', { Flat:'Flat', Slope:'Slope', Rocky:'Rocky' }, tree.options.roots.ground, value => treeTraits.configureRoots({ ground: value }));
+  rootsSection.add(createButton('Inspect Roots', 'videoCamera', () => treeTraits.inspectRoots()));
+  rootsSection.add(groundSelect); controls.push({ update: () => groundSelect.setValue(tree.options.roots.ground) });
+  const bakeRoots = createToggle('Bake Ground', tree.options.roots.bakeTerrain, value => treeTraits.configureRoots({ bakeTerrain: value }));
+  rootsSection.add(bakeRoots); controls.push({ update: () => bakeRoots.setValue(tree.options.roots.bakeTerrain) });
+  const rootNote = document.createElement('p'); rootNote.className = 'mode-status'; rootNote.textContent = 'Wrap roots over the preview terrain. Keep Bake Ground off to export neutral roots and contact weights for your game.'; rootsSection.add(rootNote);
+  parametersTab.appendChild(rootsSection.element);
+
+  const chopSection = createSection('Chop & Breakage', 'cube', false);
+  chopSection.element.id = 'tree-chop-controls';
+  const breakEnable = createToggle('Breakable', tree.options.destruction.enabled, value => treeTraits.configureDestruction({ enabled: value }));
+  chopSection.add(breakEnable); controls.push({ update: () => breakEnable.setValue(tree.options.destruction.enabled) });
+  for (const [key,label,min,max,step] of [['cut','Cut Position',0.02,0.75,0.01],['direction','Fall Direction',0,360,5],['gravity','Gravity',1,30,0.5]]) {
+    const slider = createSlider(label, tree.options.destruction[key], min, max, step, value => treeTraits.configureDestruction({ [key]: value }));
+    chopSection.add(slider); controls.push({ update: () => slider.setValue(tree.options.destruction[key]) });
+  }
+  const branchBreak = createToggle('Snap Branches', tree.options.destruction.breakBranches, value => treeTraits.configureDestruction({ breakBranches: value }));
+  chopSection.add(branchBreak); controls.push({ update: () => branchBreak.setValue(tree.options.destruction.breakBranches) });
+  const chopStatus = document.createElement('p'); chopStatus.className = 'mode-status'; chopStatus.id = 'tree-chop-status'; chopStatus.setAttribute('role','status');
+  chopSection.add(createButton('Try Chopping', 'tree', async () => { await paint(); try { treeTraits.tryChop(); breakEnable.setValue(true); } catch (error) { chopStatus.textContent = error.message; } }));
+  chopSection.add(createButton('Reset Tree', 'tree', () => treeTraits.reset()));
+  chopSection.add(chopStatus);
+  treeTraits.onChange = () => {
+    if (!treeTraits.asset) chopStatus.textContent = 'Choose a cut, then try chopping. Breakable Tree enables capped parts, trunk snap joints and a TryChop clip in GLB exports.';
+    else { const t = treeTraits.elapsed, events = treeTraits.demo.events.filter(e => e.type === 'branchImpact' && e.time <= t).length, settled = treeTraits.demo.events.some(e => e.type === 'settled' && e.time <= t); chopStatus.textContent = `${t < 0.65 ? 'Chopping' : settled ? 'Landed' : 'Falling'} · ${events} branch impacts · ${t.toFixed(1)} / ${treeTraits.demo.duration.toFixed(1)} s`; }
+  };
+  treeTraits.onChange(); parametersTab.appendChild(chopSection.element);
+
   // Keep every upstream tree control together; common scene controls stay below.
   const treeParameters = document.createElement('div');
   treeParameters.id = 'tree-parameters';
@@ -1128,6 +1173,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     const started = performance.now();
     modes.switchTo(mode);
     forestPreview.setActive(mode === 'tree');
+    treeTraits.setActive(mode === 'tree');
     modes.refreshStage();
     forestSection.element.hidden = mode !== 'tree';
     lastBuildMs = mode === 'tree' ? null : performance.now() - started;
@@ -1137,7 +1183,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     modeControl.querySelector('input').setAttribute('aria-valuetext', mode[0].toUpperCase() + mode.slice(1));
     modeControl.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mode === mode)));
     tabNav.querySelector('[data-tab="parameters"] .tab-label').textContent = mode[0].toUpperCase() + mode.slice(1);
-    lodSwitcher.hidden = !isTree; exportLodsBtn.element.hidden = !isTree;
+    lodSwitcher.hidden = !isTree; exportLodsBtn.element.hidden = !isTree; gameDataBtn.element.hidden = !isTree;
     if (!isTree) buildOrganismControls();
     updateInfoDisplays();
   }
@@ -1287,10 +1333,11 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     if (restoreLevel !== 0) {
       setPreviewLevel(0);
     }
-    const prepared = modes.prepareExport();
-    const restoreTextures = stripBrokenTextures(prepared.model);
+    let prepared, restoreTextures = () => {};
     try {
       await paint();
+      prepared = modes.prepareExport();
+      restoreTextures = stripBrokenTextures(prepared.model);
       const glb = await new Promise((resolve, reject) =>
         exporter.parse(prepared.model, resolve, reject, { binary: true, animations: prepared.model.animations ?? [] }),
       );
@@ -1303,13 +1350,21 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
       console.error(err);
     } finally {
       restoreTextures();
-      prepared.dispose();
+      prepared?.dispose();
       if (restoreLevel !== 0) {
         setPreviewLevel(restoreLevel);
       }
     }
   });
   exportModelsSection.add(exportGlbBtn);
+  const gameDataBtn = createButton('Export Tree Game Data', 'document', async () => {
+    await paint();
+    try { const prepared = treeTraits.prepareBreakableExport();
+      const link = document.getElementById('downloadLink'); link.href = URL.createObjectURL(new Blob([JSON.stringify(prepared.manifest,null,2)],{type:'application/json'})); link.download='tree-breakable.json'; link.click(); prepared.dispose();
+    } catch(error) { chopStatus.textContent=error.message; }
+  });
+  exportModelsSection.add(gameDataBtn);
+
 
   const exportLodsBtn = createButton('Export LODs (ZIP)', 'archive', async ({ setStatus }) => {
     const restoreTextures = stripBrokenTextures(getModel());
@@ -1321,6 +1376,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
 
         const { detail } = Tree.defaultLODLevels[i];
         const { branches, leaves } = tree.createGeometry(detail ?? {});
+        if (tree.branchesMesh.material.normalMap && branches.index.count) branches.computeTangents();
 
         try {
           const branchesMesh = new THREE.Mesh(branches, tree.branchesMesh.material);
@@ -1330,11 +1386,13 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
           const group = new THREE.Group();
           group.name = `Tree_LOD${i}`;
           group.add(branchesMesh, leavesMesh);
+          const roots = treeTraits.rootExport(i); if (roots) group.add(roots);
 
           const glb = await new Promise((resolve, reject) =>
             exporter.parse(group, resolve, reject, { binary: true }),
           );
           files[`tree_LOD${i}.glb`] = new Uint8Array(glb);
+          if (roots) roots.geometry.dispose();
         } finally {
           branches.dispose();
           leaves.dispose();

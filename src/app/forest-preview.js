@@ -110,9 +110,10 @@ export class ForestPreview {
           billboard: 'single',
         },
       },
-    ].map((level) => {
+    ].map((level, index) => {
       const geometry = this.tree.createGeometry(level.detail);
-      this.geometries.push(geometry.branches, geometry.leaves);
+      if (this.tree.rootRestLODs?.[index]) geometry.roots = this.tree.rootRestLODs[index].clone();
+      this.geometries.push(geometry.branches, geometry.leaves, ...(geometry.roots ? [geometry.roots] : []));
       return { ...level, geometry };
     });
     this.dirty = false;
@@ -144,6 +145,7 @@ export class ForestPreview {
           mesh.receiveShadow = true;
           pair.add(mesh);
         }
+        if (level.geometry.roots) { const root = new THREE.Mesh(level.geometry.roots, this.tree.branchesMesh.material); root.castShadow = i < 2; root.receiveShadow = true; pair.add(root); }
         lod.addLevel(pair, level.distance, 0.1);
       });
       this.group.add(lod);

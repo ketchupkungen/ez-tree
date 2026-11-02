@@ -6,6 +6,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { setupUI } from './ui';
 import { createScene } from './scene';
 import { createModes } from './modes.js';
+import { TreeTraits } from './tree-traits/controller.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('app')
@@ -42,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const delta = clock.getDelta();
     const t = clock.elapsedTime;
     modes.update(delta);
+    treeTraits.update(delta);
     renderer.toneMappingExposure = modes.mode === 'creature' && modes.playback.studio ? 1 : 2;
     tree.update(t);
     const background = scene.getObjectByName('Forest');
@@ -65,8 +67,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.addEventListener('resize', resize);
 
-  const modes = createModes(tree, scene, camera, controls);
-  setupUI(tree, environment, renderer, scene, camera, controls, 'Ash Medium', modes, forestPreview);
+  const treeTraits = new TreeTraits(tree, scene, environment, camera, controls, forestPreview);
+  const modes = createModes(tree, scene, camera, controls, treeTraits);
+  setupUI(tree, environment, renderer, scene, camera, controls, 'Ash Medium', modes, forestPreview, treeTraits);
   animate();
   resize();
 

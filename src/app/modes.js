@@ -6,7 +6,7 @@ import {
 } from './lab/generators.js';
 import { newRecipe } from './lab/recipes.js';
 
-export function createModes(tree, scene, camera, controls) {
+export function createModes(tree, scene, camera, controls, treeTraits) {
   let mode = 'tree',
     specimen,
     mixer,
@@ -185,7 +185,7 @@ export function createModes(tree, scene, camera, controls) {
       return recipes[mode];
     },
     get model() {
-      return mode === 'tree' ? tree : specimen;
+      return mode === 'tree' ? (treeTraits?.displayModel ?? tree) : specimen;
     },
     playback,
     setRecipe(recipe) {
@@ -209,6 +209,7 @@ export function createModes(tree, scene, camera, controls) {
       }
     },
     prepareExport() {
+      if (mode === 'tree' && treeTraits) return treeTraits.destruction.enabled ? treeTraits.prepareBreakableExport() : treeTraits.prepareIntactExport();
       if (mode !== 'creature') return { model: this.model, dispose() {} };
       // Export a fresh bind pose so preview time never changes inverse bind matrices.
       const group = generateCreature(recipes.creature.parameters);

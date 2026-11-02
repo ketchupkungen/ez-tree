@@ -1,0 +1,21 @@
+{
+  "commit": "41a939c",
+  "presets": {
+    "Ash Medium": {
+      "branches": "bcdeed818da2bed3e0cb43a05560bad365bb600b759e2d32f15dcdbb890f262f",
+      "leaves": "2286034a774e29d047bf03de8e36fda2010b3a8fff1b95fb986e8c7c0a6bf52b"
+    },
+    "Pine Medium": {
+      "branches": "c5ce70417e0c11b3c8a69dcc404191e72b8d3d8879f60383a85b00dd81ac26e1",
+      "leaves": "dc4c752d6fb92a2d6b832b2e19d0e10adec21bcd9e67a3fe192b7186485eee06"
+    },
+    "Oak Large": {
+      "branches": "cbe6b1b933b835f23620a000ba3355b5ee2f692409c58ce91ceaddc4b0d67d8c",
+      "leaves": "bb27c639a95234047662b965f7cd890afe3450e72eb5625bdf709e74a6de4b05"
+    },
+    "Bush 1": {
+      "branches": "735cb5b8514b5eb32591c836347ed909dcb50bd58b187a3effe9f3f4516ed4dd",
+      "leaves": "d0f3e175095816ccd4c02010549c3b6afca603225aece236f33fdd3feca5b327"
+    }
+  }
+}
