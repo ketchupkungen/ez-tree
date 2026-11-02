@@ -1,110 +1,115 @@
 <!doctype html>
 <html lang="en">
-
-<head>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-08XPB68R9M"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-
-    gtag('config', 'G-08XPB68R9M');
-  </script>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-  <link rel="manifest" href="/site.webmanifest">
-  <title>EZ-Tree | Procedural Tree Generator</title>
-  <meta name="description"
-    content="EZ-Tree is a procedural tree generator that allows you to create realistic 3D tree models with ease.">
-  <!-- SEO Meta Tags -->
-  <meta name="keywords"
-    content="tree generator, 3D trees, procedural generation, 3D modeling, game development, web3D, threejs">
-  <meta name="author" content="Dan Greenheck">
-  <meta property="og:title" content="EZ-Tree | Procedural Tree Generator">
-  <meta property="og:description"
-    content="EZ-Tree is a procedural tree generator that allows you to create realistic 3D tree models with ease.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://eztree.dev">
-  <meta property="og:image" content="https://eztree.dev/og-image.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:creator" content="@dangreenheck">
-  <meta name="twitter:title" content="EZ-Tree | Procedural Tree Generator">
-  <meta name="twitter:description"
-    content="EZ-Tree is a procedural tree generator that allows you to create realistic 3D models of trees with ease.">
-  <meta name="twitter:image" content="https://eztree.dev/og-image.png">
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
-</head>
-
-<body>
-  <div id="loading-screen">
-    <img id="logo" src="/images/logo.png">
-    <div id="loading-text">LOADING... 0%</div>
-  </div>
-
-  <div id="root">
-    <img id="about-icon" class="about-icon" src="/icons/icon_about.png" onclick="showAbout()">
-    <img id="audio-status" class="audio-icon" src="/icons/icon_playing.png" onclick="toggleAudio()">
-    <div id="app"></div>
-    <div id="ui-container"></div>
-
-    <div id="aboutOverlay" class="overlay">
-      <div class="about-dialog">
-        <img src="/images/logo.png" alt="App Icon">
-        <h1>EZ-Tree</h1>
-        <h2>Procedural Tree Generator</h2>
-        <h3>Made by Dan Greenheck</h3>
-
-        <div class="social-icons">
-          <a href="mailto:dan.greenheck@drgsoftwaresolutions.com" target="_blank" class="social-icon email"><i
-              class="fas fa-envelope"></i></a>
-          <a href="https://github.com/dgreenheck" target="_blank" class="social-icon github"><i
-              class="fab fa-github"></i></a>
-          <a href="https://www.youtube.com/channel/UCrdx_EU_Wx8_uBfqO0cI-9Q" target="_blank"
-            class="social-icon youtube"><i class="fab fa-youtube"></i></a>
-          <a href="https://www.x.com/dangreenheck" target="_blank" class="social-icon twitter"><i
-              class="fab fa-x"></i></a>
-          <a href="https://www.linkedin.com/in/danielgreenheck/" target="_blank" class="social-icon linkedin"><i
-              class="fab fa-linkedin"></i></a>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>EZ-Tree Lab · Procedural life</title>
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="./lab/style.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/"
+        >✳ <strong>EZ-TREE <span>LAB</span></strong></a
+      >
+      <div class="header-note">A playground for procedural life</div>
+      <a href="/original.html">Original tree editor ↗</a>
+    </header>
+    <main>
+      <aside>
+        <div class="eyebrow">01 / GENERATOR</div>
+        <h1>Grow something<br />unexpected.</h1>
+        <p class="intro">
+          Shape a tree, cultivate a plant, or dream up a creature. Every seed is
+          a new starting point.
+        </p>
+        <nav aria-label="Generator mode">
+          <button data-mode="tree">Tree / bush</button
+          ><button data-mode="plant">Plant</button
+          ><button data-mode="creature">Creature</button>
+        </nav>
+        <div class="control-heading">
+          <h2 id="mode-heading">Tree / bush</h2>
+          <span class="badge">EXPERIMENTAL</span>
         </div>
-        <button class="close-button" onclick="closeAbout()">CLOSE</button>
+        <label class="stack"
+          >Starting point<select
+            id="preset"
+            aria-label="Starting point"
+          ></select
+        ></label>
+        <div class="seed-row">
+          <label class="stack"
+            >Seed<input
+              id="seed"
+              aria-label="Seed"
+              type="number"
+              min="0"
+              max="2147483647"
+              step="1" /></label
+          ><button id="randomize" title="Generate a different seed">
+            ↻ New seed
+          </button>
+        </div>
+        <div id="parameters"></div>
+        <div class="colors">
+          <label
+            >Primary
+            <input type="color" id="color" aria-label="Primary color" /></label
+          ><label
+            >Accent <input type="color" id="accent" aria-label="Accent color"
+          /></label>
+        </div>
+        <button class="reset" id="reset">Reset this preset</button>
+        <p id="mode-note" class="mode-note"></p>
+        <footer>
+          Based on
+          <a
+            href="https://github.com/dgreenheck/ez-tree"
+            target="_blank"
+            rel="noreferrer"
+            >EZ-Tree by Dan Greenheck</a
+          >
+          · MIT
+        </footer>
+      </aside>
+      <section id="viewport" aria-label="3D model preview">
+        <div class="viewport-top">
+          <div>
+            <div class="eyebrow">LIVE SPECIMEN</div>
+            <h2 id="specimen-name">Ash Small</h2>
+          </div>
+          <span class="live"><i></i> LOCAL WORKSPACE</span>
+        </div>
+        <div id="canvas-host"></div>
+        <div class="view-options">
+          <button id="fit">Fit view</button
+          ><label><input type="checkbox" id="rotate" /> Auto rotate</label
+          ><label><input type="checkbox" id="wireframe" /> Wireframe</label>
+        </div>
+        <div class="viewport-bottom">
+          <span id="stats">Preparing specimen…</span
+          ><span>Drag to orbit · Scroll to zoom · Right-drag to pan</span>
+        </div>
+      </section>
+    </main>
+    <div class="export-bar">
+      <span id="status" role="status" aria-live="polite"
+        >Ready to explore.</span
+      >
+      <div>
+        <button id="load">Load recipe</button
+        ><button id="save">Save recipe</button
+        ><button id="png">Snapshot PNG</button
+        ><button id="glb" class="primary">Export GLB ↗</button>
       </div>
     </div>
-
-  </div>
-
-  <a id="downloadLink" style="display: none"></a>
-
-  <!-- Used for file uploads -->
-  <input type="file" id="fileInput" accept=".json" style="display: none" />
-
-  <audio id="background-audio" loop>
-    <source src="/audio/ambience.mp3" type="audio/mpeg">
-    Your browser does not support the audio element.
-  </audio>
-
-  <script type="module" src="./main.js"></script>
-  <script>
-    function showAbout() {
-      document.getElementById('aboutOverlay').classList.add('active');
-    }
-
-    function closeAbout() {
-      document.getElementById('aboutOverlay').classList.remove('active');
-    }
-  </script>
-
-</body>
-
+    <input
+      type="file"
+      id="import-file"
+      accept=".json,application/json"
+      hidden
+    />
+    <script type="module" src="./lab/main.js"></script>
+  </body>
 </html>
