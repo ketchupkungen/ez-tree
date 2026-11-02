@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderer.toneMappingExposure = 2;
   container.appendChild(renderer.domElement);
 
-  const { scene, environment, tree, camera, controls } = await createScene(renderer);
+  const { scene, environment, tree, camera, controls, forestPreview } = await createScene(renderer);
 
   const composer = new EffectComposer(renderer);
 
@@ -41,7 +41,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update time for wind sway shaders
     const t = clock.getElapsedTime();
     tree.update(t);
-    scene.getObjectByName('Forest').children.forEach((o) => o.update(t));
+    const background = scene.getObjectByName('Forest');
+    if (background.visible) background.children.forEach((o) => o.update(t));
+    forestPreview.updateLODs();
     environment.update(t);
 
     controls.update();
@@ -60,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('resize', resize);
 
   const modes = createModes(tree, scene, camera, controls);
-  setupUI(tree, environment, renderer, scene, camera, controls, 'Ash Medium', modes);
+  setupUI(tree, environment, renderer, scene, camera, controls, 'Ash Medium', modes, forestPreview);
   animate();
   resize();
 

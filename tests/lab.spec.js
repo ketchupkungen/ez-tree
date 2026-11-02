@@ -81,13 +81,11 @@ test('source panel switches modes, preserves controls and exports the active spe
     expect(
       (await fs.readFile(await png.path())).subarray(1, 4).toString(),
     ).toBe('PNG');
-    await page
-      .locator('#fileInput')
-      .setInputFiles({
-        name: 'recipe.json',
-        mimeType: 'application/json',
-        buffer,
-      });
+    await page.locator('#fileInput').setInputFiles({
+      name: 'recipe.json',
+      mimeType: 'application/json',
+      buffer,
+    });
     await page.locator('[data-tab=parameters]').click();
     await expect(
       page.getByRole('slider', { name: parameter, exact: true }),
@@ -112,13 +110,11 @@ test('source panel switches modes, preserves controls and exports the active spe
   await page.getByRole('button', { name: 'Save Preset', exact: true }).click();
   const treeFile = await treeDownload,
     treeBuffer = await fs.readFile(await treeFile.path());
-  await page
-    .locator('#fileInput')
-    .setInputFiles({
-      name: 'tree.json',
-      mimeType: 'application/json',
-      buffer: treeBuffer,
-    });
+  await page.locator('#fileInput').setInputFiles({
+    name: 'tree.json',
+    mimeType: 'application/json',
+    buffer: treeBuffer,
+  });
   await page.locator('[data-tab=parameters]').click();
   await expect(
     page.getByRole('slider', { name: 'Seed', exact: true }),
@@ -142,4 +138,64 @@ test('existing original.html URL opens the same source-based interface', async (
   await expect(page.locator('#loading-screen')).toBeHidden({ timeout: 60000 });
   await expect(page.locator('#custom-panel')).toBeVisible();
   await expect(page.locator('#generator-mode')).toBeVisible();
+});
+
+test('environment previews the edited tree as a background or small LOD forest', async ({
+  page,
+}, testInfo) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-screen')).toBeHidden({ timeout: 60000 });
+  await page
+    .locator('.section-header')
+    .filter({ hasText: 'Environment' })
+    .click();
+  const status = page.locator('#forest-preview-status');
+  await expect(status).toContainText('Standard background');
+  await expect(
+    page.getByRole('slider', { name: 'Tree Spacing', exact: true }),
+  ).toHaveValue('45');
+  await expect(
+    page.getByRole('slider', { name: 'Forest Size', exact: true }),
+  ).toHaveValue('1');
+  await expect(
+    page.getByRole('slider', { name: 'Forest Size', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('switch', { name: 'Edited Trees', exact: true }).click();
+  await expect(status).toContainText('8 copies');
+  await expect(status).toContainText('background');
+  await page
+    .getByRole('switch', { name: 'Surround Tree', exact: true })
+    .click();
+  await expect(status).toContainText('surrounding cluster');
+  await page
+    .getByRole('slider', { name: 'Tree Spacing', exact: true })
+    .fill('35');
+  await page.getByRole('button', { name: 'Fit Forest', exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath('small-forest.png') });
+  await page
+    .getByRole('slider', { name: 'Forest Size', exact: true })
+    .fill('4');
+  await expect(status).toContainText('80 copies');
+  await page.getByRole('button', { name: 'Fit Forest', exact: true }).click();
+  await page
+    .getByRole('slider', { name: 'Forest Size', exact: true })
+    .fill('1');
+  await page.getByRole('slider', { name: 'Seed', exact: true }).fill('1234');
+  await page
+    .getByRole('combobox', { name: 'Preset', exact: true })
+    .selectOption('Pine Small');
+  await expect(status).not.toContainText('Updating copies');
+  await page.getByRole('button', { name: 'Fit Forest', exact: true }).click();
+  await page.locator('[data-mode=plant]').click();
+  await expect(page.locator('#forest-preview-controls')).toBeHidden();
+  await page.locator('[data-mode=tree]').click();
+  await expect(page.locator('#forest-preview-controls')).toBeVisible();
+  await expect(
+    page.getByRole('switch', { name: 'Edited Trees', exact: true }),
+  ).toBeChecked();
+  await page.getByRole('switch', { name: 'Edited Trees', exact: true }).click();
+  await expect(status).toContainText('Standard background');
+  expect(errors).toEqual([]);
 });

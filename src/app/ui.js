@@ -281,11 +281,13 @@ function createToggle(label, value, onChange) {
 
   const toggle = document.createElement('button');
   toggle.className = 'toggle' + (value ? ' active' : '');
+  toggle.setAttribute('role', 'switch'); toggle.setAttribute('aria-label', label); toggle.setAttribute('aria-checked', String(value));
   toggle.innerHTML = '<span class="toggle-knob"></span>';
 
   toggle.addEventListener('click', () => {
     const newValue = !toggle.classList.contains('active');
     toggle.classList.toggle('active', newValue);
+    toggle.setAttribute('aria-checked', String(newValue));
     onChange(newValue);
   });
 
@@ -297,6 +299,7 @@ function createToggle(label, value, onChange) {
     element: container,
     setValue: (v) => {
       toggle.classList.toggle('active', v);
+      toggle.setAttribute('aria-checked', String(v));
     }
   };
 }
@@ -460,7 +463,7 @@ let controls = [];
  * @param {OrbitControls} orbitControls
  * @param {String} initialPreset
  */
-export function setupUI(tree, environment, renderer, scene, camera, orbitControls, initialPreset, modes) {
+export function setupUI(tree, environment, renderer, scene, camera, orbitControls, initialPreset, modes, forestPreview) {
   const container = document.getElementById('ui-container');
   container.innerHTML = '';
   controls = [];
@@ -629,6 +632,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     applyTreeTextures(tree);
     const t0 = performance.now();
     tree.generate();
+    forestPreview.requestRefresh();
     lastBuildMs = performance.now() - t0;
     if (previewLevel > 0) {
       applyLODPreview();
@@ -650,6 +654,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     initialPreset,
     (val) => {
       loadPresetWithTextures(tree, val);
+      forestPreview.requestRefresh();
       if (previewLevel > 0) {
         applyLODPreview();
       }
@@ -1106,6 +1111,8 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     if (!modes) return;
     const started = performance.now();
     modes.switchTo(mode);
+    forestPreview.setActive(mode === 'tree');
+    forestSection.element.hidden = mode !== 'tree';
     lastBuildMs = mode === 'tree' ? null : performance.now() - started;
     const isTree = mode === 'tree';
     treeParameters.hidden = !isTree; organismParameters.hidden = isTree;
@@ -1151,6 +1158,28 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
   });
   environmentSection.add(grassCountSlider);
   controls.push({ control: grassCountSlider, update: () => grassCountSlider.setValue(environment.grass.instanceCount) });
+
+  const forestSection = createSubSection('Forest Preview', true);
+  forestSection.element.id = 'forest-preview-controls';
+  const editedForestToggle = createToggle('Edited Trees', forestPreview.settings.enabled, value => forestPreview.configure({ enabled: value }));
+  const surroundToggle = createToggle('Surround Tree', forestPreview.settings.surround, value => forestPreview.configure({ surround: value }));
+  forestSection.add(editedForestToggle);
+  forestSection.add(surroundToggle);
+  forestSection.add(createSlider('Tree Spacing', forestPreview.settings.spacing, 10, 100, 5, value => forestPreview.configure({ spacing: value })));
+  forestSection.add(createSlider('Forest Size', forestPreview.settings.rings, 1, 4, 1, value => forestPreview.configure({ rings: value })));
+  forestSection.add(createButton('Fit Forest', 'videoCamera', () => forestPreview.fit()));
+  const forestInfo = document.createElement('p');
+  forestInfo.className = 'mode-status'; forestInfo.id = 'forest-preview-status'; forestInfo.setAttribute('role', 'status');
+  forestSection.add(forestInfo);
+  forestPreview.onChange = () => {
+    const { enabled, surround, spacing, rings } = forestPreview.settings;
+    const count = (2 * rings + 1) ** 2 - 1;
+    forestInfo.textContent = enabled ? `${count} copies · ${spacing} units apart · ${surround ? 'surrounding cluster' : 'background'} · automatic LODs${forestPreview.dirty ? ' · Updating copies…' : ''}` : 'Standard background. Enable Edited Trees to preview copies. Size 1 starts with 8 neighbours; size 4 has 80.';
+    surroundToggle.element.querySelector('button').disabled = !enabled;
+    forestSection.element.querySelectorAll('input, .panel-button').forEach(control => control.disabled = !enabled);
+  };
+  forestPreview.onChange();
+  environmentSection.add(forestSection);
 
   parametersTab.appendChild(environmentSection.element);
 

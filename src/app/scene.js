@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Tree, TreePreset } from '@dgreenheck/ez-tree';
 import { Environment } from './environment';
 import { loadPresetWithTextures } from './textures';
+import { ForestPreview } from './forest-preview.js';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -105,10 +106,12 @@ export async function createScene(renderer) {
   await loadTrees(0);
 
   scene.add(forest);
+  const forestPreview = new ForestPreview(tree, forest, scene, camera, controls);
 
   return {
     scene,
     environment,
+    forestPreview,
     tree,
     camera,
     controls
