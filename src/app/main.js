@@ -39,7 +39,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const clock = new THREE.Clock();
   function animate() {
     // Update time for wind sway shaders
-    const t = clock.getElapsedTime();
+    const delta = clock.getDelta();
+    const t = clock.elapsedTime;
+    modes.update(delta);
+    renderer.toneMappingExposure = modes.mode === 'creature' && modes.playback.studio ? 1 : 2;
     tree.update(t);
     const background = scene.getObjectByName('Forest');
     if (background.visible) background.children.forEach((o) => o.update(t));
@@ -57,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     composer.setSize(container.clientWidth, container.clientHeight);
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
+    modes.refreshStage();
   }
 
   window.addEventListener('resize', resize);

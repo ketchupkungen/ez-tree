@@ -16,7 +16,7 @@ test('source panel switches modes, preserves controls and exports the active spe
   await page.screenshot({ path: testInfo.outputPath('tree.png') });
   for (const [mode, index, parameter, value] of [
     ['plant', '1', 'Stem height', '5'],
-    ['creature', '2', 'Leg pairs', '3'],
+    ['creature', '2', 'Head size', '1.2'],
   ]) {
     await page
       .getByRole('slider', { name: 'Generator mode', exact: true })
@@ -72,7 +72,7 @@ test('source panel switches modes, preserves controls and exports the active spe
       buffer = await fs.readFile(await saved.path());
     const recipe = JSON.parse(buffer);
     expect(recipe.mode).toBe(mode);
-    expect(recipe.parameters[mode === 'plant' ? 'height' : 'legPairs']).toBe(
+    expect(recipe.parameters[mode === 'plant' ? 'height' : 'headSize']).toBe(
       Number(value),
     );
     const pngEvent = page.waitForEvent('download');

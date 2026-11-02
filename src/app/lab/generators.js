@@ -38,44 +38,7 @@ export const plantPresets = {
     accent: '#d1a6d9',
   },
 };
-export const creaturePresets = {
-  Mossback: {
-    seed: 42,
-    length: 4,
-    girth: 1,
-    legPairs: 2,
-    legLength: 1.6,
-    headSize: 0.8,
-    tailLength: 2.4,
-    horns: 2,
-    color: '#719b85',
-    accent: '#e3c994',
-  },
-  'Dune crawler': {
-    seed: 320,
-    length: 5,
-    girth: 0.7,
-    legPairs: 4,
-    legLength: 1.2,
-    headSize: 0.6,
-    tailLength: 1.8,
-    horns: 4,
-    color: '#c49762',
-    accent: '#5f594c',
-  },
-  'Little grazer': {
-    seed: 64,
-    length: 2.6,
-    girth: 0.9,
-    legPairs: 2,
-    legLength: 2.4,
-    headSize: 1.1,
-    tailLength: 0.6,
-    horns: 0,
-    color: '#ad8baf',
-    accent: '#e8d8bd',
-  },
-};
+export { creaturePresets, generateCreature } from '../creature/creatures.js';
 export function randomSource(seed) {
   let n = seed >>> 0;
   return () => {
@@ -208,98 +171,6 @@ export function generatePlant(p) {
   return g;
 }
 
-/** Symmetric static creature assembled from seeded organic forms and jointed limbs. */
-export function generateCreature(p) {
-  const g = new THREE.Group();
-  g.name = 'Creature';
-  const rnd = randomSource(p.seed);
-  const skin = material(p.color),
-    accent = material(p.accent),
-    eyes = material('#111d22'),
-    white = material('#f2ead6');
-  const y = p.legLength + p.girth * 0.5;
-  ball(g, skin, v(0, y, 0), [p.length * 0.5, p.girth, p.girth * 0.72]);
-  const head = v(p.length * 0.49 + p.headSize * 0.4, y + p.girth * 0.35, 0);
-  tube(
-    g,
-    skin,
-    [v(p.length * 0.32, y, 0), head],
-    p.girth * 0.45,
-    p.headSize * 0.55,
-  );
-  ball(g, skin, head, [p.headSize, p.headSize * 0.8, p.headSize * 0.7]);
-  ball(
-    g,
-    accent,
-    head.clone().add(v(p.headSize * 0.65, -p.headSize * 0.25, 0)),
-    [p.headSize * 0.6, p.headSize * 0.4, p.headSize * 0.55],
-  );
-  for (const side of [-1, 1]) {
-    const eye = head
-      .clone()
-      .add(v(p.headSize * 0.42, p.headSize * 0.25, side * p.headSize * 0.6));
-    ball(g, white, eye, [
-      p.headSize * 0.21,
-      p.headSize * 0.23,
-      p.headSize * 0.13,
-    ]);
-    ball(
-      g,
-      eyes,
-      eye.clone().add(v(p.headSize * 0.06, 0, side * p.headSize * 0.1)),
-      [p.headSize * 0.11, p.headSize * 0.14, p.headSize * 0.07],
-    );
-    const ear = ball(
-      g,
-      accent,
-      head
-        .clone()
-        .add(
-          v(-p.headSize * 0.35, p.headSize * 0.65, side * p.headSize * 0.55),
-        ),
-      [p.headSize * 0.38, p.headSize * 0.18, p.headSize * 0.25],
-    );
-    ear.rotation.x = side * 0.4;
-  }
-  for (let i = 0; i < p.legPairs; i++) {
-    const x =
-      p.legPairs === 1 ? 0 : (-0.32 + (i / (p.legPairs - 1)) * 0.64) * p.length;
-    const spread = p.girth * (1 + rnd() * 0.5);
-    for (const side of [-1, 1]) {
-      const hip = v(x, y, side * p.girth * 0.5),
-        knee = v(x + 0.18, p.legLength * 0.55, side * spread),
-        foot = v(x - 0.16, 0.17, side * spread * 1.1);
-      tube(g, skin, [hip, knee], p.girth * 0.23, p.girth * 0.15);
-      ball(g, skin, knee, [p.girth * 0.2, p.girth * 0.2, p.girth * 0.2]);
-      tube(g, skin, [knee, foot], p.girth * 0.15, p.girth * 0.11);
-      ball(g, accent, foot, [p.girth * 0.36, 0.17, p.girth * 0.24]);
-    }
-  }
-  if (p.tailLength > 0) {
-    const base = v(-p.length * 0.42, y, 0),
-      tip = v(-p.length * 0.5 - p.tailLength, y + p.tailLength * 0.35, 0);
-    tube(
-      g,
-      skin,
-      [base, v(base.x - p.tailLength * 0.5, y - 0.2, 0), tip],
-      p.girth * 0.16,
-    );
-    ball(g, accent, tip, [p.girth * 0.25, p.girth * 0.25, p.girth * 0.25]);
-  }
-  for (let i = 0; i < p.horns; i++) {
-    const x = head.x - p.headSize * 0.4 - i * p.length * 0.18,
-      h = (0.4 + rnd() * 0.5) * p.girth;
-    const horn = mesh(
-      g,
-      new THREE.ConeGeometry(p.girth * 0.18, h, 8),
-      accent,
-      v(x, y + p.girth * 0.85 + h * 0.4, 0),
-    );
-    horn.rotation.z = 0.25;
-  }
-  return g;
-}
-
 export function disposeModel(model) {
   const geometries = new Set(),
     materials = new Set();
@@ -310,6 +181,11 @@ export function disposeModel(model) {
         materials.add(m),
       );
   });
+  const skeletons = new Set();
+  model.traverse((o) => {
+    if (o.isSkinnedMesh) skeletons.add(o.skeleton);
+  });
+  skeletons.forEach((s) => s.dispose());
   geometries.forEach((g) => g.dispose());
   materials.forEach((m) => m.dispose());
 }

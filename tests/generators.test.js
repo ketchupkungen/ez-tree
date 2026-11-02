@@ -75,7 +75,7 @@ test('recipes roundtrip and reject malformed, unbounded and unsupported data', (
     },
     {
       ...newRecipe('creature'),
-      parameters: { ...newRecipe('creature').parameters, legPairs: 2.5 },
+      parameters: { ...newRecipe('creature').parameters, detail: 2.5 },
     },
   ])
     assert.throws(() => validateRecipe(data));

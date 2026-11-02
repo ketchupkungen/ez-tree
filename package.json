@@ -36,12 +36,13 @@
     "app": "npm run build:lib && vite --config vite.app.config.js",
     "preview": "vite preview --config vite.app.config.js",
     "build": "npm run build:lib && npm run build:app",
-    "test": "node --test tests/generators.test.js tests/forest-preview.test.js",
+    "test": "node --test tests/generators.test.js tests/forest-preview.test.js tests/creature-rig.test.js",
     "test:browser": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/three": "^0.169.0",
+    "gltf-validator": "^2.0.0-dev.3.10",
     "prettier": "3.3.3",
     "three": "^0.167.x",
     "vite": "^5.0.0",

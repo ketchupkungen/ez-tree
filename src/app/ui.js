@@ -7,6 +7,7 @@ import { Environment } from './environment';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { version } from '../../package.json';
 import { fields, presets, newRecipe, validateRecipe } from './lab/recipes.js';
+import { speciesFields } from './creature/creatures.js';
 
 const exporter = new GLTFExporter();
 
@@ -1089,14 +1090,15 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     const mode = modes.mode, recipe = modes.recipe;
     const section = createSection('Presets', 'swatch', true);
     section.add(createSelect('Preset', Object.fromEntries(Object.keys(presets[mode]).map(name => [name, name])), recipe.preset, name => {
-      modes.setRecipe(newRecipe(mode, name)); buildOrganismControls(); regenerateOrganism(true);
+      modes.setRecipe(newRecipe(mode, name)); regenerateOrganism(true); buildOrganismControls();
     }));
     const seed = createSlider('Seed', recipe.parameters.seed, 0, 65536, 1, value => { recipe.parameters.seed = value; regenerateOrganism(); });
     section.add(seed);
     section.add(createButton('Random Seed', 'dice', () => { recipe.parameters.seed = Math.floor(Math.random() * 65536); seed.setValue(recipe.parameters.seed); regenerateOrganism(); }));
     organismParameters.appendChild(section.element);
     const shape = createSection(mode === 'plant' ? 'Plant Shape' : 'Creature Shape', 'tree', true);
-    for (const [key, [label, min, max, step]] of Object.entries(fields[mode])) {
+    const shapeFields = mode === 'creature' ? Object.fromEntries(speciesFields[recipe.parameters.species].map(key => [key, fields.creature[key]])) : fields[mode];
+    for (const [key, [label, min, max, step]] of Object.entries(shapeFields)) {
       shape.add(createSlider(label, recipe.parameters[key], min, max, step, value => { recipe.parameters[key] = value; regenerateOrganism(); }));
     }
     for (const [key, label] of [['color', 'Primary'], ['accent', 'Accent']]) {
@@ -1104,7 +1106,21 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     }
     shape.add(createButton('Fit View', 'videoCamera', () => modes.fit()));
     organismParameters.appendChild(shape.element);
-    modeStatus.textContent = mode === 'plant' ? 'Procedural foliage and flowers.' : 'Static creature shapes. Rigging and animation come later.';
+    if (mode === 'creature') {
+      const animation = createSection('Rig & Animation', 'videoCamera', true);
+      const locomotion = recipe.parameters.species === 'snake' ? 'Slither' : recipe.parameters.species === 'fish' ? 'Swim' : 'Walk';
+      animation.add(createSelect('Animation', { [locomotion]: locomotion, Idle: 'Idle', 'Rest pose': 'Rest' }, modes.playback.clip, value => modes.setClip(value)));
+      animation.add(createToggle('Playing', modes.playback.playing, value => modes.playback.playing = value));
+      for (const key of ['gaitSpeed', ...(locomotion === 'Walk' ? ['stride'] : []), 'sway']) {
+        const [label, min, max, step] = fields.creature[key];
+        animation.add(createSlider(label, recipe.parameters[key], min, max, step, value => { recipe.parameters[key] = value; regenerateOrganism(); }));
+      }
+      animation.add(createToggle('Show Rig', modes.playback.showRig, value => { modes.playback.showRig = value; modes.refreshStage(); }));
+      animation.add(createToggle('Studio View', modes.playback.studio, value => { modes.playback.studio = value; modes.refreshStage(); }));
+      organismParameters.appendChild(animation.element);
+    }
+    modeStatus.id = 'organism-status';
+    modeStatus.textContent = mode === 'plant' ? 'Procedural foliage and flowers.' : `${modes.model.userData.rigBones} bones · skinned mesh · Idle + ${modes.model.userData.locomotion}. GLB includes the rig and both clips. Mesh detail: 0 draft / 1 balanced / 2 fine.`;
     organismParameters.appendChild(modeStatus);
   }
   function setMode(mode) {
@@ -1112,6 +1128,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     const started = performance.now();
     modes.switchTo(mode);
     forestPreview.setActive(mode === 'tree');
+    modes.refreshStage();
     forestSection.element.hidden = mode !== 'tree';
     lastBuildMs = mode === 'tree' ? null : performance.now() - started;
     const isTree = mode === 'tree';
@@ -1270,11 +1287,12 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     if (restoreLevel !== 0) {
       setPreviewLevel(0);
     }
-    const restoreTextures = stripBrokenTextures(getModel());
+    const prepared = modes.prepareExport();
+    const restoreTextures = stripBrokenTextures(prepared.model);
     try {
       await paint();
       const glb = await new Promise((resolve, reject) =>
-        exporter.parse(getModel(), resolve, reject, { binary: true }),
+        exporter.parse(prepared.model, resolve, reject, { binary: true, animations: prepared.model.animations ?? [] }),
       );
       const blob = new Blob([glb], { type: 'application/octet-stream' });
       const link = document.getElementById('downloadLink');
@@ -1285,6 +1303,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
       console.error(err);
     } finally {
       restoreTextures();
+      prepared.dispose();
       if (restoreLevel !== 0) {
         setPreviewLevel(restoreLevel);
       }
@@ -1344,6 +1363,8 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
 
     renderer.setClearColor(0, 0);
     const fog = scene.fog;
+    const background = scene.background;
+    scene.background = null;
     scene.fog = null;
 
     const visibility = new Map();
@@ -1351,7 +1372,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
       visibility.set(o, o.visible);
       if (o.name === 'Skybox') {
         o.material.side = THREE.FrontSide;
-      } else if (o.isMesh) {
+      } else if (o.isMesh || o.isLineSegments) {
         o.visible = false;
       }
     });
@@ -1369,6 +1390,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
     } finally {
       renderer.setClearColor(0);
       scene.fog = fog;
+      scene.background = background;
       scene.traverse((o) => {
         if (o.name === 'Skybox') {
           o.material.side = THREE.BackSide;
@@ -1410,7 +1432,7 @@ export function setupUI(tree, environment, renderer, scene, camera, orbitControl
       reader.onload = function (e) {
         try {
           const data = JSON.parse(e.target.result);
-          if (data.version === 1 && data.mode) {
+          if ((data.version === 1 || data.version === 2) && data.mode) {
             const recipe = validateRecipe(data);
             if (recipe.mode === 'tree') throw new Error('Use an original tree preset for Tree mode.');
             modes.setRecipe(recipe); setMode(recipe.mode); regenerateOrganism(true); buildOrganismControls();

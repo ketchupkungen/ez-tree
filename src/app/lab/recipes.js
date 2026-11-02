@@ -17,13 +17,20 @@ export const fields = {
     bend: ['Stem bend', 0, 3, 0.1],
   },
   creature: {
-    length: ['Body length', 1.5, 8, 0.1],
-    girth: ['Body girth', 0.4, 2, 0.05],
-    legPairs: ['Leg pairs', 1, 6, 1],
-    legLength: ['Leg length', 0.5, 3.5, 0.1],
-    headSize: ['Head size', 0.3, 1.5, 0.05],
-    tailLength: ['Tail length', 0, 4, 0.1],
-    horns: ['Back horns', 0, 6, 1],
+    bodyLength: ['Body length', 0.65, 1.5, 0.05],
+    build: ['Body build', 0.65, 1.5, 0.05],
+    legLength: ['Leg length', 0.7, 1.4, 0.05],
+    headSize: ['Head size', 0.7, 1.4, 0.05],
+    neckLength: ['Neck length', 0.65, 1.4, 0.05],
+    muzzle: ['Muzzle length', 0.6, 1.5, 0.05],
+    earSize: ['Ear size', 0.5, 1.5, 0.05],
+    tailLength: ['Tail length', 0.5, 1.6, 0.05],
+    antlers: ['Antler size', 0, 1.5, 0.05],
+    finSize: ['Fin size', 0.6, 1.5, 0.05],
+    stride: ['Stride length', 0.4, 1.6, 0.05],
+    gaitSpeed: ['Cycle speed', 0.5, 2, 0.05],
+    sway: ['Body sway', 0.25, 1.5, 0.05],
+    detail: ['Mesh detail', 0, 2, 1],
   },
 };
 export const treeNames = [
@@ -62,23 +69,45 @@ export const presets = {
   creature: creaturePresets,
 };
 export function newRecipe(mode, preset = Object.keys(presets[mode])[0]) {
-  return { version: 1, mode, preset, parameters: { ...presets[mode][preset] } };
+  return {
+    version: mode === 'creature' ? 2 : 1,
+    mode,
+    preset,
+    parameters: { ...presets[mode][preset] },
+  };
 }
 export function validateRecipe(data) {
+  // Old exploratory creature recipes migrate to the closest new anatomy preset.
+  const legacy = {
+    Mossback: 'Wolf',
+    'Dune crawler': 'Lizard',
+    'Little grazer': 'Elk',
+  };
+  if (
+    data?.version === 1 &&
+    data.mode === 'creature' &&
+    Object.hasOwn(legacy, data.preset)
+  ) {
+    const migrated = newRecipe('creature', legacy[data.preset]);
+    for (const key of ['seed', 'color', 'accent'])
+      if (data.parameters?.[key] !== undefined)
+        migrated.parameters[key] = data.parameters[key];
+    return validateRecipe(migrated);
+  }
   if (
     !data ||
-    data.version !== 1 ||
+    data.version !== (data.mode === 'creature' ? 2 : 1) ||
     !Object.hasOwn(presets, data.mode) ||
     !Object.hasOwn(presets[data.mode], data.preset)
   )
-    throw new Error(
-      'Choose an EZ-Tree Lab version 1 recipe with a supported mode and preset.',
-    );
+    throw new Error('Choose a supported EZ-Tree Lab recipe and preset.');
   const p = data.parameters;
   if (!p || !Number.isInteger(p.seed) || p.seed < 0 || p.seed > 2147483647)
     throw new Error('Seed must be an integer from 0 to 2147483647.');
   const result = newRecipe(data.mode, data.preset);
   result.parameters.seed = p.seed;
+  if (data.mode === 'creature' && p.species !== result.parameters.species)
+    throw new Error('Species does not match the selected anatomy preset.');
   for (const [key, [, min, max, step]] of Object.entries(fields[data.mode])) {
     if (
       !Number.isFinite(p[key]) ||
